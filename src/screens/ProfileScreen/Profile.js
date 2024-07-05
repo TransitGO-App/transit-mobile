@@ -1,193 +1,168 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Alert } from "react-native";
-import CustomInputProfile from "../../components/CustomInputProfile/Index";
-import CustomButton from "../../components/CustomButton/Index";
-import { useNavigation } from "@react-navigation/native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import axios from "axios";
-import Config from "@/config";
-import { TouchableOpacity } from "react-native-gesture-handler";
+import React, {useEffect, useState} from 'react';
+import {View, Text, StyleSheet, Alert} from 'react-native';
+import CustomInput from '../../components/CustomInput/Index';
+import CustomButton from '../../components/CustomButton/Index';
+import {useNavigation} from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import Config from '@/config';
 
 const apiURL = Config.API_BASE_URL;
 
-const Profile = () => {
+const Profile = ({profileInfo = {}, setProfileInfo}) => {
   const navigation = useNavigation();
-  const [role, setRole] = useState("");
+  const [role, setRole] = useState(null);
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      const storedRole = await AsyncStorage.getItem('userRole');
+      setRole(storedRole);
+    };
+    fetchRole();
+  }, []);
+
   const [isEditing, setIsEditing] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
-  const isPassenger = role === "passenger";
-  const [profileInfo, setProfileInfo] = useState({
-    fname: "",
-    lname: "",
-    email: "",
-    uname: "",
-    id: "",
-  });
+  const isPassenger = role === 'passenger';
+  const {fname = '', lname = '', email = '', uname = '', id = ''} = profileInfo;
   const [editData, setEditData] = useState({
-    fname: "",
-    lname: "",
-    uname: "",
-    email: "",
+    fname: '',
+    lname: '',
+    uname: '',
   });
 
   const handleEdit = () => {
     setIsEditing(true);
     setEditData({
-      fname: profileInfo.fname,
-      lname: profileInfo.lname,
-      uname: profileInfo.uname,
-      email: profileInfo.email,
+      fname: profileInfo.fname ?? '',
+      lname: profileInfo.lname ?? '',
+      uname: profileInfo.uname ?? '',
     });
   };
 
-  const handleSave = async (e) => {
+  const onEditInput = (name, value) => {
+    setEditData({...editData, [name]: value});
+  };
+
+  const handleSave = async () => {
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem('token');
       const response = await axios.put(
-        `${apiURL}/admin-user/update/${profileInfo.id}`,
+        `${apiURL}/admin-user/update/${id}`,
         editData,
         {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+          headers: {Authorization: `Bearer ${token}`},
+        },
       );
-      console.warn("Saved");
-      Alert.alert("Changed Saved");
-
+      Alert.alert('Changes Saved');
       setProfileInfo(editData);
       setIsEditing(false);
     } catch (error) {
-      console.warn(error);
-      Alert.alert("Error Updating profile");
+      Alert.alert('Error Updating Profile');
     }
   };
 
   const handleDelete = () => {
-    navigation.navigate("VerifyPassword");
+    navigation.navigate('VerifyPassword');
   };
 
-  const getProfileInfo = async (e) => {
-    const token = await AsyncStorage.getItem("token");
-    const type = await AsyncStorage.getItem("role");
-    setRole(type);
-    console.log(type);
+  const getProfileInfo = async () => {
     try {
+      const token = await AsyncStorage.getItem('token');
       const response = await axios.get(`${apiURL}/user/profile`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {Authorization: `Bearer ${token}`},
       });
       setProfileInfo({
-        fname: response.data.fname,
-        lname: response.data.lname,
-        email: response.data.email,
-        uname: response.data.uname,
-        id: response.data.id,
+        fname: response.data.fname ?? '',
+        lname: response.data.lname ?? '',
+        email: response.data.email ?? '',
+        uname: response.data.uname ?? '',
+        id: response.data.id ?? '',
       });
     } catch (error) {
-      console.warn("Error fetching data");
+      console.log('Error Fetching User Information: ', error);
     }
-  };
-
-  const handlePasswordChange = () => {
-    navigation.navigate("ConfirmEmail");
   };
 
   useEffect(() => {
     getProfileInfo();
   }, []);
 
-  const onEditInput = (name, value) => {
-    setEditData({ ...editData, [name]: value });
-  };
-
-  const isSaveButtonVisible = () => {
-    return (
-      editData.fname !== profileInfo.fname ||
-      editData.lname !== profileInfo.lname ||
-      editData.uname !== profileInfo.uname
-    );
-  };
-
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <View style={styles.profileform}>
       <View style={styles.form}>
-        <Text style={styles.label}>First Name</Text>
-        <CustomInputProfile
+        <CustomInput
+          value={isEditing ? editData.fname : fname}
+          setValue={value => onEditInput('fname', value)}
           placeholder="First Name"
-          value={isEditing ? editData.fname : profileInfo.fname}
           editable={isEditing}
-          onChangeText={(text) => onEditInput("fname", text)}
         />
-
-        <Text style={styles.label}>Last Name</Text>
-        <CustomInputProfile
+        <CustomInput
+          value={isEditing ? editData.lname : lname}
+          setValue={value => onEditInput('lname', value)}
           placeholder="Last Name"
-          value={isEditing ? editData.lname : profileInfo.lname}
-          editable={isEditing}
-          onChangeText={(text) => onEditInput("lname", text)}
-        />
-
-        <Text style={styles.label}>E-mail</Text>
-        <CustomInputProfile
-          placeholder="Email"
-          value={profileInfo.email}
           editable={isEditing}
         />
-
-        <Text style={styles.label}>User Name</Text>
-        <CustomInputProfile
+        <CustomInput value={email} placeholder="E-mail" editable={false} />
+        <CustomInput
+          value={isEditing ? editData.uname : uname}
+          setValue={value => onEditInput('uname', value)}
           placeholder="User Name"
-          value={isEditing ? editData.uname : profileInfo.uname}
           editable={isEditing}
-          onChangeText={(text) => onEditInput("uname", text)}
         />
-        {isEditing && (
-          <TouchableOpacity
-            onPress={handlePasswordChange}
-            style={styles.changePasswordContainer}
-          >
-            <Text style={styles.changePasswordText}>Change Password</Text>
-          </TouchableOpacity>
-        )}
-
-        <View style={styles.buttonsContainer}>
-          {!isEditing && <CustomButton text="Edit" onPress={handleEdit} />}
-          {isEditing && isSaveButtonVisible() && (
-            <CustomButton text="Save" onPress={handleSave} />
-          )}
+        <View style={styles.otherOption}>
+          <Text
+            style={styles.changePasswordText}
+            onPress={() => navigation.navigate('ForgotPassword')}>
+            Change Password
+          </Text>
+        </View>
+        <View
+          style={[
+            styles.editAndSave,
+            isPassenger ? styles.withDelete : styles.withoutDelete,
+          ]}>
+          {!isEditing && <CustomButton onPress={handleEdit} text="Edit" />}
           {isEditing && (
-            <CustomButton text="Discard" onPress={() => setIsEditing(false)} />
+            <CustomButton onPress={handleSave} text="Save Changes" />
           )}
           {isPassenger && (
-            <CustomButton text="Delete Account" onPress={handleDelete} />
+            <CustomButton onPress={handleDelete} text="Delete Account" />
           )}
         </View>
       </View>
-    </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
+  profileform: {
     padding: 20,
-    backgroundColor: "#fff",
-    justifyContent: "center",
+    backgroundColor: '#f9f9f9',
+    flex: 1,
   },
   form: {
-    width: "100%",
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    padding: 20,
   },
-  label: {
-    fontSize: 16,
-    fontWeight: "bold",
+  otherOption: {
     marginVertical: 10,
   },
-  buttonsContainer: {
-    marginTop: 20,
-  },
-  changePasswordContainer: {
-    alignSelf: "flex-end",
-  },
   changePasswordText: {
-    color: "red",
+    color: '#1E2772',
+    fontSize: 15,
+    textDecorationLine: 'underline',
+  },
+  editAndSave: {
+    marginVertical: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  withDelete: {
+    justifyContent: 'space-between',
+  },
+  withoutDelete: {
+    justifyContent: 'flex-start',
   },
 });
 
